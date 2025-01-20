@@ -82,16 +82,16 @@ resource "yandex_storage_bucket" "this" {
    - в качестве идентификатора ключа доступа используем значение ***static_key_id***
    - в качестве секретного ключа доступа используем значение ***static_key_secret***
 
-[!изображение](https://github.com/stepynin-georgy/hw_cloud_2/blob/main/img/Screenshot_5.png)
+![изображение](https://github.com/stepynin-georgy/hw_cloud_2/blob/main/img/Screenshot_5.png)
 
 После подключения вставляем копируем файл изображения в бакет.
 
 Нажимаем правой кнопкой мыши по файлу и выбираем команду **Файловые пользовательские команды -> Сгенерировать URL для протокола HTTP**
 Получаем диалоговое окно со ссылкой на файл в бакете. Нажимаем кнопку "Копировать", чтобы скопировать адрес в буфер обмена.
 
-[!изображение](https://github.com/stepynin-georgy/hw_cloud_2/blob/main/img/Screenshot_6.png)
+![изображение](https://github.com/stepynin-georgy/hw_cloud_2/blob/main/img/Screenshot_6.png)
 
-[!изображение](https://github.com/stepynin-georgy/hw_cloud_2/blob/main/img/Screenshot_7.png)
+![изображение](https://github.com/stepynin-georgy/hw_cloud_2/blob/main/img/Screenshot_7.png)
 
 В итоге файл доступен по [ссылке](http://storage.yandexcloud.net/grpa-storage/gosling.jpg). Т.к. при создании бакета использовалась предопределенная ACL - public-read, то файл уже доступен на чтение из интернета.
 
@@ -222,11 +222,11 @@ resource "yandex_compute_instance_group" "publicvmg" {
 
 - Создались 3 машины с образом LAMP:
 
-  [!изображение](https://github.com/stepynin-georgy/hw_cloud_2/blob/main/img/Screenshot_4.png)
+  ![изображение](https://github.com/stepynin-georgy/hw_cloud_2/blob/main/img/Screenshot_4.png)
   
 - Создалась группа машин состоящая из этих 3 машин:
 
-  [!изображение](https://github.com/stepynin-georgy/hw_cloud_2/blob/main/img/Screenshot_8.png)
+  ![изображение](https://github.com/stepynin-georgy/hw_cloud_2/blob/main/img/Screenshot_8.png)
 
 ## 3. Подключение группы инстансов к  к сетевому балансировщику
 
@@ -281,25 +281,25 @@ data "yandex_compute_instance_group" "vmg"{
 
 3. Вид yandex-консоли с развернутым балансировщиком:
 
-  [!изображение](https://github.com/stepynin-georgy/hw_cloud_2/blob/main/img/Screenshot_9.png)
+  ![изображение](https://github.com/stepynin-georgy/hw_cloud_2/blob/main/img/Screenshot_9.png)
 
-  [!изображение](https://github.com/stepynin-georgy/hw_cloud_2/blob/main/img/Screenshot_10.png)
+  ![изображение](https://github.com/stepynin-georgy/hw_cloud_2/blob/main/img/Screenshot_10.png)
 
-  [!изображение](https://github.com/stepynin-georgy/hw_cloud_2/blob/main/img/Screenshot_11.png)
+  ![изображение](https://github.com/stepynin-georgy/hw_cloud_2/blob/main/img/Screenshot_11.png)
 
 4. В процессе обновления группы ВМ:
 
   - Происходит удаление ВМ по 1 за раз :
 
-  [!изображение](https://github.com/stepynin-georgy/hw_cloud_2/blob/main/img/Screenshot_13.png)  
+  ![изображение](https://github.com/stepynin-georgy/hw_cloud_2/blob/main/img/Screenshot_13.png)  
 
   - Проверка доступности новых экземпляров ВМ
     
-  [!изображение](https://github.com/stepynin-georgy/hw_cloud_2/blob/main/img/Screenshot_14.png)
+  ![изображение](https://github.com/stepynin-georgy/hw_cloud_2/blob/main/img/Screenshot_14.png)
 
 5. Вид страницы с фото:
 
-  [!изображение](https://github.com/stepynin-georgy/hw_cloud_2/blob/main/img/Screenshot_12.png)
+  ![изображение](https://github.com/stepynin-georgy/hw_cloud_2/blob/main/img/Screenshot_12.png)
 
 ---
 ## Задание 2*. AWS (задание со звёздочкой)
