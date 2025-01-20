@@ -37,6 +37,11 @@
 - [Network Load Balancer](https://registry.terraform.io/providers/yandex-cloud/yandex/latest/docs/resources/lb_network_load_balancer).
 - [Группа ВМ с сетевым балансировщиком](https://cloud.yandex.ru/docs/compute/operations/instance-groups/create-with-balancer).
 
+## 1. Создание бакета и размещение файлов в нем
+
+Создание бакета вынесено в отдельный модуль, расположенный в [папке](terraform/modules/bucket)
+
+
 ---
 ## Задание 2*. AWS (задание со звёздочкой)
 
