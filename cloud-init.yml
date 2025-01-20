@@ -1,0 +1,31 @@
+#cloud-config 
+users:
+  - name: ubuntu
+    groups: sudo
+    shell: /bin/bash
+    sudo: ['ALL=(ALL) NOPASSWD:ALL']  
+    ssh_authorized_keys:
+      - ${public_key}  
+write_files:
+  - content: |
+      <html lang="ru">
+        <head>
+          <meta charset="UTF-8">
+          <title>Картинка</title>
+        </head>
+        <body>
+          <h2>IP адрес сервера обработчика:</h2>
+          <p>#ipaddress</p>
+          <h2>Картинка из бакета:</h2>
+          <p><img src='http://storage.yandexcloud.net/grpa-storage/gosling.jpg'/></p>
+        </body>
+      </html>
+    path: /var/www/html/template.tl
+package_update: true
+package_upgrade: false
+packages: 
+  - nano
+  - curl
+runcmd:
+  - sed "s/#ipaddress/$(curl ifconfig.me)/g" /var/www/html/template.tl>/var/www/html/index.html
+  - rm /var/www/html/template.tl
