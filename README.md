@@ -39,8 +39,57 @@
 
 ## 1. Создание бакета и размещение файлов в нем
 
-Создание бакета вынесено в отдельный модуль, расположенный в [папке](terraform/modules/bucket)
+Создание бакета вынесено в отдельный модуль, расположенный в [папке](modules/bucket)
 
+```
+terraform {
+  required_providers {
+    yandex = { source = "yandex-cloud/yandex"
+    }
+  } 
+  required_version = ">=0.13" 
+}
+
+// Создаем статический ключ доступа
+resource "yandex_iam_service_account_static_access_key" "sa-static-key" {
+  service_account_id = yandex_iam_service_account.sa.id
+  description        = "статический ключ доступа для объектного хранилища"
+}
+
+// Создаем бакет 
+resource "yandex_storage_bucket" "this" {
+  access_key = yandex_iam_service_account_static_access_key.sa-static-key.access_key
+  secret_key = yandex_iam_service_account_static_access_key.sa-static-key.secret_key
+  bucket                = var.bucket.name
+  folder_id             = var.folder_id
+  default_storage_class = var.bucket.type
+  acl                   = var.bucket.acl
+  max_size              = var.bucket.max_size
+  force_destroy         = var.bucket.force_destroy
+   
+  depends_on = [
+    yandex_iam_service_account.sa,
+    yandex_resourcemanager_folder_iam_member.sa-editor
+  ]
+}
+```
+
+(main.tf)[modules/bucket/main.tf]
+
+2. Файл размещаем через программу winscp:
+   - в программе выбираем создание нового подключения ***Amazon S3***
+   - в качестве имени хоста указываем значение ***storage.yandexcloud.net*** 
+   - в качестве идентификатора ключа доступа используем значение ***static_key_id***
+   - в качестве секретного ключа доступа используем значение ***static_key_secret***
+
+(!изображение)[https://github.com/stepynin-georgy/hw_cloud_2/blob/main/img/Screenshot_5.png]
+
+После подключения вставляем копируем файл изображения в бакет.
+
+Нажимаем правой кнопкой мыши по файлу и выбираем команду **Файловые пользовательские команды -> Сгенерировать URL для протокола HTTP**
+Получаем диалоговое окно со ссылкой на файл в бакете. Нажимаем кнопку "Копировать", чтобы скопировать адрес в буфер обмена.
+
+В итоге файл доступен по (ссылке)[https://storage.yandexcloud.net/grpa-storage/Game.png]. Т.к. при создании бакета использовалась предопределенная ACL - public-read, то файл уже доступен на чтение из интернета.
 
 ---
 ## Задание 2*. AWS (задание со звёздочкой)
