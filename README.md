@@ -74,7 +74,7 @@ resource "yandex_storage_bucket" "this" {
 }
 ```
 
-(main.tf)[modules/bucket/main.tf]
+[main.tf](modules/bucket/main.tf)
 
 2. Файл размещаем через программу winscp:
    - в программе выбираем создание нового подключения ***Amazon S3***
@@ -82,14 +82,224 @@ resource "yandex_storage_bucket" "this" {
    - в качестве идентификатора ключа доступа используем значение ***static_key_id***
    - в качестве секретного ключа доступа используем значение ***static_key_secret***
 
-(!изображение)[https://github.com/stepynin-georgy/hw_cloud_2/blob/main/img/Screenshot_5.png]
+[!изображение](https://github.com/stepynin-georgy/hw_cloud_2/blob/main/img/Screenshot_5.png)
 
 После подключения вставляем копируем файл изображения в бакет.
 
 Нажимаем правой кнопкой мыши по файлу и выбираем команду **Файловые пользовательские команды -> Сгенерировать URL для протокола HTTP**
 Получаем диалоговое окно со ссылкой на файл в бакете. Нажимаем кнопку "Копировать", чтобы скопировать адрес в буфер обмена.
 
-В итоге файл доступен по (ссылке)[https://storage.yandexcloud.net/grpa-storage/Game.png]. Т.к. при создании бакета использовалась предопределенная ACL - public-read, то файл уже доступен на чтение из интернета.
+[!изображение](https://github.com/stepynin-georgy/hw_cloud_2/blob/main/img/Screenshot_6.png)
+
+[!изображение](https://github.com/stepynin-georgy/hw_cloud_2/blob/main/img/Screenshot_7.png)
+
+В итоге файл доступен по [ссылке](http://storage.yandexcloud.net/grpa-storage/gosling.jpg). Т.к. при создании бакета использовалась предопределенная ACL - public-read, то файл уже доступен на чтение из интернета.
+
+# 2. Создание группы ВМ в public подсети фиксированного размера с шаблоном LAMP и веб-страницей, содержащей ссылку на картинку из бакета
+
+Создание группы ВМ сделано в виде отдельного модуля, который доступен в [папке](modules/vmgroup)
+
+```
+terraform {
+  required_providers {
+    yandex = { source = "yandex-cloud/yandex"
+    }
+  } 
+  required_version = ">=0.13" 
+}
+
+#создаем публичную группу ВМ
+resource "yandex_compute_instance_group" "publicvmg" { 
+  name               = var.vmg_name
+  folder_id          = var.folder_id
+  service_account_id = yandex_iam_service_account.sa.id
+  instance_template {
+    platform_id               = "standard-v1"
+
+    resources{
+      cores  = var.vms_resources.publicvm.cores
+      memory = var.vms_resources.publicvm.memory 
+      core_fraction = var.vms_resources.publicvm.core_fraction
+    } 
+    boot_disk {
+      initialize_params {
+        image_id = data.yandex_compute_image.lamp.image_id
+        type = var.vms_resources.publicvm.disk.type
+        size = var.vms_resources.publicvm.disk.size
+      }
+    }
+    scheduling_policy { preemptible = true }
+
+    network_interface { 
+      network_id = "${yandex_vpc_network.develop.id}"
+      subnet_ids = ["${yandex_vpc_subnet.public.id}"]
+      nat = true 
+    }
+    metadata = {
+         for k, v in var.metadata : k => v 
+    }
+  }
+  scale_policy {
+    fixed_scale {
+      size = 3
+    }
+  }
+  allocation_policy {
+    zones = [var.default_zone]
+  }
+  deploy_policy {
+    max_unavailable = 1
+    max_creating = 3
+    max_expansion = 1
+    max_deleting = 1
+  }
+  health_check {
+    interval = 60 # Интервал между проверками. Указывается в секундах. Не рекомендуется указывать большие значения. Иначе долго будет подниматься группа.
+    timeout = 10 # Указывается в секундах
+    healthy_threshold = 2 # Количество успешных запросов после которых экземпляр признается успешным
+    unhealthy_threshold = 2 # Количество неуспешных запросов после которых экземпляр признается неуспешным
+    http_options {
+        port = 80
+        path = "/"
+    }
+  } 
+  dynamic "load_balancer" {
+    for_each = var.lb_netgroupname !=null?[var.lb_netgroupname]:[]
+    content{
+      target_group_name        = load_balancer.value
+      target_group_description = "Группа балансировки к которой будет подключен балансировщик"
+    }
+  } 
+  dynamic "application_load_balancer" {
+    for_each = var.lb_apigroupname !=null?[var.lb_apigroupname]:[]
+    content{
+      target_group_name        = application_load_balancer.value
+      target_group_description = "Группа балансировки к которой будет подключен балансировщик"
+    }
+  } 
+  depends_on = [
+    yandex_iam_service_account.sa,
+    yandex_resourcemanager_folder_iam_member.sa-admin
+  ]
+}  
+```
+
+[main.tf](modules/vmgroup/main.tf)
+
+2. Картинка из бакета публикуется на стартовой странице путем добавления разметки в [cloud-init.yml](cloud-init.yml):
+
+   ```
+      write_files:
+        - content: |
+            <html lang="ru">
+               <head>
+                  <meta charset="UTF-8">
+                  <title>Картинка</title>
+               </head>
+               <body>
+                <h2>Картинка из бакета:</h2>
+                <img src='http://storage.yandexcloud.net/grpa-storage/gosling.jpg'/>
+               </body>
+            </html>
+          path: /var/www/html/index.html
+   ```
+
+3. Проверка состояния ВМ осуществляется добавления блока **health_check** в группу ВМ и имеет вид:
+   
+   ```
+      health_check {
+        interval = 60 # Интервал между проверками. Указывается в секундах
+        timeout = 5 # Указывается в секундах
+        healthy_threshold = 2 # Количество успешных запросов после которых экземпляр признается успешным, может принимать значения 0 или от 2 до 10. 
+        unhealthy_threshold = 2 # Количество неуспешных запросов после которых экземпляр признается неуспешным, может принимать значения 0 или от 2 до 10
+        tcp_options {
+            port = 80
+        }
+      } 
+   ```
+
+В итоге в консоли yandex видим:
+
+- Создались 3 машины с образом LAMP:
+
+  [!изображение](https://github.com/stepynin-georgy/hw_cloud_2/blob/main/img/Screenshot_4.png)
+  
+- Создалась группа машин состоящая из этих 3 машин:
+
+  [!изображение](https://github.com/stepynin-georgy/hw_cloud_2/blob/main/img/Screenshot_8.png)
+
+## 3. Подключение группы инстансов к  к сетевому балансировщику
+
+Создание балансировщика нагрузки сделано в виде отдельного модуля, который доступен в [папке](modules/networklb)
+
+```
+terraform {
+  required_providers {
+    yandex = { source = "yandex-cloud/yandex"
+    }
+  } 
+  required_version = ">=0.13" 
+}
+
+# Сетевой балансировщик нагрузки
+resource "yandex_lb_network_load_balancer" "publiclb" {
+  name =  var.lb_name
+
+  listener {
+    name = "${var.lb_name}-listener"
+    port = 80
+    external_address_spec {
+      ip_version = "ipv4"
+    }
+  }
+
+  attached_target_group {
+    target_group_id = data.yandex_compute_instance_group.vmg.load_balancer.0.target_group_id
+
+    healthcheck {
+      name = "http"
+      http_options {
+        port = 80
+        path = "/"
+      }
+    }
+  }
+  depends_on = [
+    data.yandex_compute_instance_group.vmg
+  ]
+}
+
+# Получаем предварительно созданную группу ВМ по идентификатору. 
+data "yandex_compute_instance_group" "vmg"{
+  instance_group_id =  var.vmg_id 
+}
+```
+
+[main.tf](https://github.com/stepynin-georgy/hw_cloud_2/blob/main/modules/networklb/main.tf)
+
+2. Развернуть балансировщик можно отдельной командой: ```terraform apply --target module.networklb```
+
+3. Вид yandex-консоли с развернутым балансировщиком:
+
+  [!изображение](https://github.com/stepynin-georgy/hw_cloud_2/blob/main/img/Screenshot_9.png)
+
+  [!изображение](https://github.com/stepynin-georgy/hw_cloud_2/blob/main/img/Screenshot_10.png)
+
+  [!изображение](https://github.com/stepynin-georgy/hw_cloud_2/blob/main/img/Screenshot_11.png)
+
+4. В процессе обновления группы ВМ:
+
+  - Происходит удаление ВМ по 1 за раз :
+
+  [!изображение](https://github.com/stepynin-georgy/hw_cloud_2/blob/main/img/Screenshot_13.png)  
+
+  - Проверка доступности новых экземпляров ВМ
+    
+  [!изображение](https://github.com/stepynin-georgy/hw_cloud_2/blob/main/img/Screenshot_14.png)
+
+5. Вид страницы с фото:
+
+  [!изображение](https://github.com/stepynin-georgy/hw_cloud_2/blob/main/img/Screenshot_12.png)
 
 ---
 ## Задание 2*. AWS (задание со звёздочкой)
